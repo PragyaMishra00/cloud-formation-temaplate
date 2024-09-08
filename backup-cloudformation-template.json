@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  BackupVault:
+    Type: 'AWS::Backup::BackupVault'
+    Properties:
+      BackupVaultName: 'bits-backup-vault'
+      EncryptionKeyArn: 'arn:aws:kms:us-east-1:390844758836:key/fb0f81e5-880e-410a-9889-10d2b7afa642' # Optional, specify if you use a KMS key for encryption
+
+  BackupPlan:
+    Type: 'AWS::Backup::BackupPlan'
+    Properties:
+      BackupPlan:
+        BackupPlanName: 'bits-backup-plan'
+        BackupPlanRule:
+          - RuleName: 'DailyBackup'
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: 'cron(0 12 * * ? *)' # Daily at 12:00 PM UTC
+            StartWindowMinutes: 60
+            CompletionWindowMinutes: 120
+            RecoveryPointTags:
+              Backup: 'True'
+
+  BackupSelectionEC2:
+    Type: 'AWS::Backup::BackupSelection'
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: 'EC2BackupSelection'
+        IamRoleArn: 'arn:aws:iam::390844758836:role/service-role/AWSBackupDefaultServiceRole' # Ensure this IAM role has appropriate permissions
+        Resources:
+          - !Sub 'arn:aws:ec2:us-east-1:390844758836:instance/*'
+        ListOfTags:
+          - ConditionType: 'STRINGEQUALS'
+            ConditionKey: 'Backup'
+            ConditionValue: 'True'
+
+  BackupSelectionRDS:
+    Type: 'AWS::Backup::BackupSelection'
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: 'RDSBackupSelection'
+        IamRoleArn: 'arn:aws:iam::390844758836:role/service-role/AWSBackupDefaultServiceRole' # Ensure this IAM role has appropriate permissions
+        Resources:
+          - !Sub 'arn:aws:rds:us-east-1:390844758836:db:*'
+        ListOfTags:
+          - ConditionType: 'STRINGEQUALS'
+            ConditionKey: 'Backup'
+            ConditionValue: 'True'
+
+  BackupSelectionEFS:
+    Type: 'AWS::Backup::BackupSelection'
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: 'EFSBackupSelection'
+        IamRoleArn: 'arn:aws:iam::390844758836:role/service-role/AWSBackupDefaultServiceRole' # Ensure this IAM role has appropriate permissions
+        Resources:
+          - !Sub 'arn:aws:elasticfilesystem:us-east-1:390844758836:file-system/*'
+        ListOfTags:
+          - ConditionType: 'STRINGEQUALS'
+            ConditionKey: 'Backup'
+            ConditionValue: 'True'
+
+  BackupSelectionEBS:
+    Type: 'AWS::Backup::BackupSelection'
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: 'EBSBackupSelection'
+        IamRoleArn: 'arn:aws:iam::390844758836:role/service-role/AWSBackupDefaultServiceRole' # Ensure this IAM role has appropriate permissions
+        Resources:
+          - !Sub 'arn:aws:ec2:us-east-1:390844758836:volume/*'
+        ListOfTags:
+          - ConditionType: 'STRINGEQUALS'
+            ConditionKey: 'Backup'
+            ConditionValue: 'True'
